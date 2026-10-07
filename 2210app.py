@@ -329,7 +329,7 @@ if 'has_auto_synced' not in st.session_state:
 # ==========================================
 # 5. STREAMLIT UI LAYOUT
 # ==========================================
-st.title("PUSAT TINGKATAN ENAM SENGKURONG")
+st.title("2210 COMPUTER SCIENCE BRUNEI")
 st.subheader(f"💻 O Level {SYLLABUS_CODE} Computer Science PYP Portal")
 
 # --- SIDEBAR CONTROLS ---
@@ -351,12 +351,12 @@ with st.sidebar:
 
 # --- NAVIGATION TABS (6 TABS) ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🖥️ Paper 1 Search", 
-    "🐍 Paper 2 Search", 
+    "🖥️ P1 Search", 
+    "🐍 P2 Search", 
     "🛒 Handout Cart", 
-    "🔑 Answer Scheme P1", 
-    "🔑 Answer Scheme P2", 
-    "🔒 Admin Panel"
+    "🔑 Answer P1", 
+    "🔑 Answer P2", 
+    "🔒 Admin PYP Upload"
 ])
 
 
