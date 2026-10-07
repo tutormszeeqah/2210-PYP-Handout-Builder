@@ -676,14 +676,14 @@ with tab6:
 # 6. PORTAL FOOTER
 # ==========================================
 st.markdown("---")
-SCHOOL_NAME = "Pusat Tingkatan Enam Sengkurong (PTES)"
-SCHOOL_VISION = "Nurturing Resilient Leaders & Future-Ready Citizens"
+SCHOOL_NAME = "SBC 2210 COMPUTER SCIENCE 2026"
+SCHOOL_VISION = "Quality Education, Progressive Nation"
 
 footer_html = f"""
 <div style="text-align: center; padding: 15px 0px; font-family: sans-serif;">
     <p style="margin: 0; font-size: 1.0em; font-weight: bold; color: #384403;">🏫 {SCHOOL_NAME}</p>
     <p style="margin: 5px 0; font-size: 0.9em; font-style: italic; color: #384403;">"{SCHOOL_VISION}"</p>
-    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed for O Level Computer Science ({SYLLABUS_CODE})</p>
+    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed by Cikgu Hajah Nurul Haziqah HN (PTES) ({SYLLABUS_CODE})</p>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
