@@ -230,11 +230,11 @@ def create_worksheet_docx(basket_items: list) -> io.BytesIO:
     section = doc.sections[0]
 
     section.page_width = Inches(8.5)
-    section.page_height = Inches(11.0)
-    section.top_margin = Inches(0.4)
-    section.bottom_margin = Inches(0.4)
-    section.left_margin = Inches(0.5)
-    section.right_margin = Inches(0.5)
+    section.page_height = Inches(11.5)
+    section.top_margin = Inches(0.3)
+    section.bottom_margin = Inches(0.3)
+    section.left_margin = Inches(0.3)
+    section.right_margin = Inches(0.3)
 
     header = section.header
     header_p = header.paragraphs[0]
@@ -329,7 +329,7 @@ if 'has_auto_synced' not in st.session_state:
 # ==========================================
 # 5. STREAMLIT UI LAYOUT
 # ==========================================
-st.title("2210 COMPUTER SCIENCE BRUNEI")
+st.title("2210 COMPUTER SCIENCE BRUNEI ZONE 5")
 st.subheader(f"💻 O Level {SYLLABUS_CODE} Computer Science PYP Portal")
 
 # --- SIDEBAR CONTROLS ---
@@ -415,7 +415,7 @@ with tab1:
 
 # --- TAB 2: PAPER 2 SEARCH (ALGORITHMS, PROGRAMMING & LOGIC) ---
 with tab2:
-    st.subheader("🐍 Paper 2 Search (Algorithms & Programming - Variants 2 & 3)")
+    st.subheader("🐍 Paper 2 Search (Algorithms & Programming)")
     
     col_v, col_kw = st.columns([1, 2])
     with col_v:
@@ -522,7 +522,7 @@ with tab3:
 
 # --- TAB 4: ANSWER SCHEME (PAPER 1) ---
 with tab4:
-    st.subheader("🔑 Download & Preview Marking Schemes (Paper 1)")
+    st.subheader("🔑 Preview & Download Marking Schemes (Paper 1)")
     
     col_y, col_m, col_v = st.columns([1, 1.5, 1.5])
     with col_y:
@@ -582,7 +582,7 @@ with tab4:
 
 # --- TAB 5: ANSWER SCHEME (PAPER 2) ---
 with tab5:
-    st.subheader("🔑 Download & Preview Marking Schemes (Paper 2)")
+    st.subheader("🔑 Preview & Download Marking Schemes (Paper 2)")
     
     col_y, col_m, col_v = st.columns([1, 1.5, 1.5])
     with col_y:
@@ -643,7 +643,7 @@ with tab5:
 # --- TAB 6: ADMIN PANEL (4 GOOGLE DRIVE REPOSITORIES) ---
 with tab6:
     st.subheader("🔒 Administrator Control Panel")
-    st.caption("Manage Google Drive repositories across all 4 syllabus partitions.")
+    st.caption("Manage Google Drive across all 4 PYP folders")
 
     admin_pwd = st.secrets.get("ADMIN_PASSWORD", "")
     pwd_input = st.text_input("Enter Admin Password", type="password", key="admin_pwd_input")
@@ -652,7 +652,7 @@ with tab6:
         st.success("Authenticated as Administrator")
         st.markdown("---")
         
-        st.markdown("### 🌐 Upload & Manage PYP Repositories")
+        st.markdown("### 🌐 Upload & Manage PYP Collections")
         st.info("💡 Click any of the 4 buttons below to open its Google Drive folder in a new tab where you can upload new PDF past papers or mark schemes.")
         
         drive_links = st.secrets.get("drive_web_links", {})
