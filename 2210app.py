@@ -14,7 +14,7 @@ from docx.oxml.ns import qn
 # Google API Libraries
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 # ==========================================
 # 0. STREAMLIT PAGE CONFIG & CUSTOM STYLING
@@ -102,9 +102,9 @@ st.markdown("""
 # 1. DIRECTORY MAPPING & CONFIGURATION
 # ==========================================
 SYLLABUS_CODE = "2210"
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+SCOPES = ['https://www.googleapis.com/auth/drive']
 
-# 4 Core Folders for 2210 Computer Science
+# 4 Core Local Folders for 2210 Computer Science
 LOCAL_FOLDERS = {
     "p1": "2210_Paper1",
     "p2": "2210_Paper2",
@@ -119,12 +119,12 @@ for folder_path in LOCAL_FOLDERS.values():
 # ==========================================
 # 2. GOOGLE DRIVE AUTHENTICATION & SYNC
 # ==========================================
-def build_drive_service(write_access=False):
+def build_drive_service(write_access=True):
     """Authenticates using Google Service Account credentials from Streamlit Secrets."""
     try:
         if "gcp_service_account" in st.secrets:
             service_account_info = dict(st.secrets["gcp_service_account"])
-            scopes = ['https://www.googleapis.com/auth/drive.file'] if write_access else SCOPES
+            scopes = ['https://www.googleapis.com/auth/drive'] if write_access else ['https://www.googleapis.com/auth/drive.readonly']
             creds = service_account.Credentials.from_service_account_info(
                 service_account_info, 
                 scopes=scopes
@@ -202,12 +202,55 @@ def perform_bulk_sync():
         messages.append(msg)
     return total_synced, messages
 
+def upload_file_to_drive(file_bytes: bytes, file_name: str, folder_key: str) -> tuple[bool, str]:
+    """
+    Uploads a PDF file directly to Google Drive via the Service Account
+    and saves a local copy for instant search availability.
+    """
+    service = build_drive_service(write_access=True)
+    if not service:
+        return False, "Could not connect to Google Drive service."
+
+    folder_ids = st.secrets.get("drive_folders", {})
+    drive_folder_id = folder_ids.get(folder_key)
+
+    if not drive_folder_id:
+        return False, f"Missing drive folder ID for key: `{folder_key}` in secrets."
+
+    try:
+        file_metadata = {
+            'name': file_name,
+            'parents': [drive_folder_id]
+        }
+        media = MediaIoBaseUpload(
+            io.BytesIO(file_bytes), 
+            mimetype='application/pdf', 
+            resumable=True
+        )
+
+        uploaded_file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id'
+        ).execute()
+
+        # Save local copy for immediate search indexing
+        local_dir = LOCAL_FOLDERS[folder_key]
+        local_path = os.path.join(local_dir, file_name)
+        with open(local_path, "wb") as f:
+            f.write(file_bytes)
+
+        return True, f"Successfully uploaded `{file_name}` to Drive (ID: `{uploaded_file.get('id')}`) and saved locally."
+
+    except Exception as e:
+        return False, f"Upload failed for `{file_name}`: {e}"
+
 
 # ==========================================
 # 3. HELPER FUNCTIONS
 # ==========================================
 def add_page_number_to_run(run):
-    """Adds a dynamic Word page number field."""
+    """Adds a dynamic Word page number field to document headers."""
     fldChar1 = OxmlElement('w:fldChar')
     fldChar1.set(qn('w:fldCharType'), 'begin')
     instrText = OxmlElement('w:instrText')
@@ -225,16 +268,16 @@ def add_page_number_to_run(run):
     r.append(fldChar3)
 
 def create_worksheet_docx(basket_items: list) -> io.BytesIO:
-    """Generates a Word document containing selected PDF pages."""
+    """Generates a Word document containing selected PDF pages from the cart."""
     doc = Document()
     section = doc.sections[0]
 
     section.page_width = Inches(8.5)
-    section.page_height = Inches(11.5)
-    section.top_margin = Inches(0.3)
-    section.bottom_margin = Inches(0.3)
-    section.left_margin = Inches(0.3)
-    section.right_margin = Inches(0.3)
+    section.page_height = Inches(11.0)
+    section.top_margin = Inches(0.4)
+    section.bottom_margin = Inches(0.4)
+    section.left_margin = Inches(0.5)
+    section.right_margin = Inches(0.5)
 
     header = section.header
     header_p = header.paragraphs[0]
@@ -329,7 +372,7 @@ if 'has_auto_synced' not in st.session_state:
 # ==========================================
 # 5. STREAMLIT UI LAYOUT
 # ==========================================
-st.title("2210 COMPUTER SCIENCE BRUNEI ZONE 5")
+st.title("PUSAT TINGKATAN ENAM SENGKURONG")
 st.subheader(f"💻 O Level {SYLLABUS_CODE} Computer Science PYP Portal")
 
 # --- SIDEBAR CONTROLS ---
@@ -351,12 +394,12 @@ with st.sidebar:
 
 # --- NAVIGATION TABS (6 TABS) ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🖥️ P1 Search", 
-    "🐍 P2 Search", 
+    "🖥️ Paper 1 Search", 
+    "🐍 Paper 2 Search", 
     "🛒 Handout Cart", 
-    "🔑 Answer P1", 
-    "🔑 Answer P2", 
-    "🔒 Admin PYP Upload"
+    "🔑 Answer Scheme P1", 
+    "🔑 Answer Scheme P2", 
+    "🔒 Admin Panel"
 ])
 
 
@@ -415,7 +458,7 @@ with tab1:
 
 # --- TAB 2: PAPER 2 SEARCH (ALGORITHMS, PROGRAMMING & LOGIC) ---
 with tab2:
-    st.subheader("🐍 Paper 2 Search (Algorithms & Programming)")
+    st.subheader("🐍 Paper 2 Search (Algorithms & Programming - Variants 2 & 3)")
     
     col_v, col_kw = st.columns([1, 2])
     with col_v:
@@ -522,7 +565,7 @@ with tab3:
 
 # --- TAB 4: ANSWER SCHEME (PAPER 1) ---
 with tab4:
-    st.subheader("🔑 Preview & Download Marking Schemes (Paper 1)")
+    st.subheader("🔑 Download & Preview Marking Schemes (Paper 1)")
     
     col_y, col_m, col_v = st.columns([1, 1.5, 1.5])
     with col_y:
@@ -582,7 +625,7 @@ with tab4:
 
 # --- TAB 5: ANSWER SCHEME (PAPER 2) ---
 with tab5:
-    st.subheader("🔑 Preview & Download Marking Schemes (Paper 2)")
+    st.subheader("🔑 Download & Preview Marking Schemes (Paper 2)")
     
     col_y, col_m, col_v = st.columns([1, 1.5, 1.5])
     with col_y:
@@ -640,10 +683,10 @@ with tab5:
         st.warning(f"No Mark Scheme found matching session `{search_session_tag2}` and variant `{as_variant2}` (Expected pattern: `{expected_ms_filename2}`).")
 
 
-# --- TAB 6: ADMIN PANEL (4 GOOGLE DRIVE REPOSITORIES) ---
+# --- TAB 6: ADMIN PANEL (WITH DIRECT STREAMLIT UPLOADER) ---
 with tab6:
     st.subheader("🔒 Administrator Control Panel")
-    st.caption("Manage Google Drive across all 4 PYP folders")
+    st.caption("Upload PYP PDFs directly to Google Drive repositories or access web folders.")
 
     admin_pwd = st.secrets.get("ADMIN_PASSWORD", "")
     pwd_input = st.text_input("Enter Admin Password", type="password", key="admin_pwd_input")
@@ -652,21 +695,80 @@ with tab6:
         st.success("Authenticated as Administrator")
         st.markdown("---")
         
-        st.markdown("### 🌐 Upload & Manage PYP Collections")
-        st.info("💡 Click any of the 4 buttons below to open its Google Drive folder in a new tab where you can upload new PDF past papers or mark schemes.")
-        
+        # --- DIRECT STREAMLIT UPLOADER SECTION ---
+        st.markdown("### 📤 Direct PDF File Uploader")
+        st.info("Upload past papers or mark schemes directly here. Files will be uploaded to Google Drive and saved locally for instant search.")
+
+        col_target, col_files = st.columns([1, 2])
+
+        with col_target:
+            target_repo = st.selectbox(
+                "Select Target Repository:",
+                [
+                    "Paper 1 Question Papers (p1)",
+                    "Paper 2 Question Papers (p2)",
+                    "Paper 1 Mark Schemes (ms_p1)",
+                    "Paper 2 Mark Schemes (ms_p2)"
+                ],
+                key="admin_upload_repo_select"
+            )
+
+            # Map user selection to LOCAL_FOLDERS / drive_folders key
+            if "(p1)" in target_repo:
+                selected_folder_key = "p1"
+            elif "(p2)" in target_repo:
+                selected_folder_key = "p2"
+            elif "(ms_p1)" in target_repo:
+                selected_folder_key = "ms_p1"
+            else:
+                selected_folder_key = "ms_p2"
+
+        with col_files:
+            uploaded_pdfs = st.file_uploader(
+                "Choose PDF File(s)",
+                type=["pdf"],
+                accept_multiple_files=True,
+                key="admin_pdf_uploader"
+            )
+
+        if st.button("🚀 Upload File(s) Now", use_container_width=True, key="btn_upload_pdfs"):
+            if uploaded_pdfs:
+                progress_bar = st.progress(0)
+                total_files = len(uploaded_pdfs)
+
+                for idx, pdf_file in enumerate(uploaded_pdfs):
+                    file_bytes = pdf_file.read()
+                    file_name = pdf_file.name
+
+                    with st.spinner(f"Uploading `{file_name}`..."):
+                        success, message = upload_file_to_drive(file_bytes, file_name, selected_folder_key)
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+
+                    progress_bar.progress((idx + 1) / total_files)
+
+                st.toast("Upload processing complete!")
+            else:
+                st.warning("Please select at least one PDF file to upload.")
+
+        st.markdown("---")
+
+        # --- GOOGLE DRIVE LINKS SECTION ---
+        st.markdown("### 🌐 External Google Drive Web Folders")
         drive_links = st.secrets.get("drive_web_links", {})
 
         c1, c2 = st.columns(2)
         with c1:
-            st.link_button("🖥️ 1. Upload Paper 1 Question Papers", drive_links.get("p1", "https://drive.google.com"), use_container_width=True)
+            st.link_button("🖥️ 1. Paper 1 Question Papers Folder", drive_links.get("p1", "https://drive.google.com"), use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            st.link_button("🔑 3. Upload Answer Schemes (Paper 1)", drive_links.get("ms_p1", "https://drive.google.com"), use_container_width=True)
+            st.link_button("🔑 3. Answer Schemes (Paper 1) Folder", drive_links.get("ms_p1", "https://drive.google.com"), use_container_width=True)
             
         with c2:
-            st.link_button("🐍 2. Upload Paper 2 Question Papers", drive_links.get("p2", "https://drive.google.com"), use_container_width=True)
+            st.link_button("🐍 2. Paper 2 Question Papers Folder", drive_links.get("p2", "https://drive.google.com"), use_container_width=True)
             st.markdown("<br>", unsafe_allow_html=True)
-            st.link_button("🔑 4. Upload Answer Schemes (Paper 2)", drive_links.get("ms_p2", "https://drive.google.com"), use_container_width=True)
+            st.link_button("🔑 4. Answer Schemes (Paper 2) Folder", drive_links.get("ms_p2", "https://drive.google.com"), use_container_width=True)
 
     elif pwd_input:
         st.error("Incorrect Admin Password.")
@@ -676,14 +778,14 @@ with tab6:
 # 6. PORTAL FOOTER
 # ==========================================
 st.markdown("---")
-SCHOOL_NAME = "SBC 2210 COMPUTER SCIENCE 2026"
-SCHOOL_VISION = "Quality Education, Progressive Nation"
+SCHOOL_NAME = "SBC COMPUTER SCIENCE 2210 BRUNEI EDUCATION"
+SCHOOL_VISION = "Nurturing Resilient Leaders & Future-Ready Citizens"
 
 footer_html = f"""
 <div style="text-align: center; padding: 15px 0px; font-family: sans-serif;">
     <p style="margin: 0; font-size: 1.0em; font-weight: bold; color: #384403;">🏫 {SCHOOL_NAME}</p>
     <p style="margin: 5px 0; font-size: 0.9em; font-style: italic; color: #384403;">"{SCHOOL_VISION}"</p>
-    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed by Cikgu Hajah Nurul Haziqah HN (PTES) ({SYLLABUS_CODE})</p>
+    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed for O Level Computer Science ({SYLLABUS_CODE})</p>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
