@@ -369,3 +369,446 @@ def execute_pdf_search(folder_key: str, keyword_string: str, variant_filter: str
                                 "page": page_num, 
                                 "path": filepath
                             })
+                    doc.close()
+                except Exception:
+                    continue
+    return results
+
+
+# ==========================================
+# 4. SESSION STATE INITIALIZATION
+# ==========================================
+if 'handout_basket' not in st.session_state:
+    st.session_state.handout_basket = []
+
+if 'p1_results' not in st.session_state:
+    st.session_state.p1_results = []
+if 'p2_results' not in st.session_state:
+    st.session_state.p2_results = []
+
+if 'has_auto_synced' not in st.session_state:
+    st.session_state.has_auto_synced = True
+    with st.spinner("🚀 Initializing portal & auto-syncing 2210 CS files..."):
+        perform_bulk_sync()
+
+
+# ==========================================
+# 5. STREAMLIT UI LAYOUT
+# ==========================================
+st.title("PUSAT TINGKATAN ENAM SENGKURONG")
+st.subheader(f"💻 O Level {SYLLABUS_CODE} Computer Science PYP Portal")
+
+# --- SIDEBAR CONTROLS ---
+with st.sidebar:
+    st.header("🔄 Google Drive Sync")
+    if st.button("🔄 Sync Google Drive", use_container_width=True):
+        with st.spinner("Syncing Google Drive folders..."):
+            synced_count, sync_msgs = perform_bulk_sync()
+            st.success(f"Sync Complete! {synced_count} new file(s) downloaded.")
+            for m in sync_msgs:
+                st.caption(m)
+
+    st.markdown("---")
+    st.metric(label="Saved Pages in Cart", value=len(st.session_state.handout_basket))
+
+    if st.button("🗑️ Clear Cart", use_container_width=True):
+        st.session_state.handout_basket = []
+        st.rerun()
+
+# --- NAVIGATION TABS (6 TABS) ---
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "🖥️ Paper 1 Search", 
+    "🐍 Paper 2 Search", 
+    "🛒 Handout Cart", 
+    "🔑 Answer Scheme P1", 
+    "🔑 Answer Scheme P2", 
+    "🔒 Admin Panel"
+])
+
+
+# --- TAB 1: PAPER 1 SEARCH (COMPUTER SYSTEMS) ---
+with tab1:
+    st.subheader("🖥️ Paper 1 Search (Computer Systems - Variants 2 & 3)")
+    
+    col_v, col_kw = st.columns([1, 2])
+    with col_v:
+        p1_variant = st.selectbox(
+            "Select Variant Filter:", 
+            ["All Variants (2 & 3)", "Variant 2", "Variant 3"],
+            key="p1_variant_select"
+        )
+    with col_kw:
+        p1_kw = st.text_input(
+            "Enter Search Keywords", 
+            placeholder="e.g., Hexadecimal, CPU, Operating System, Encryption, Von Neumann", 
+            key="p1_kw"
+        )
+
+    if st.button("Search Paper 1", key="btn_search_p1"):
+        if p1_kw.strip():
+            filter_var = "Variant 2" if "Variant 2" in p1_variant else ("Variant 3" if "Variant 3" in p1_variant else "All Variants")
+            with st.spinner("Scanning Paper 1 PDFs..."):
+                st.session_state.p1_results = execute_pdf_search("p1", p1_kw, filter_var)
+        else:
+            st.warning("Please enter at least one keyword.")
+
+    if st.session_state.p1_results:
+        st.write(f"Found **{len(st.session_state.p1_results)}** matching page(s):")
+        for idx, item in enumerate(st.session_state.p1_results):
+            with st.expander(f"📄 {item['file']} | Page {item['page'] + 1}"):
+                c1, c2 = st.columns([3, 1])
+                with c1:
+                    preview_img = render_pdf_page_preview(item["path"], item["page"])
+                    if preview_img:
+                        st.image(preview_img, use_container_width=True)
+                with c2:
+                    if st.button("➕ Add to Cart", key=f"add_p1_{idx}"):
+                        st.session_state.handout_basket.append(item)
+                        st.toast(f"Added Page {item['page'] + 1} to cart!")
+                        st.rerun()
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    with open(item["path"], "rb") as pdf_f:
+                        st.download_button(
+                            label="📥 Download Full PDF",
+                            data=pdf_f,
+                            file_name=item["file"],
+                            mime="application/pdf",
+                            key=f"dl_p1_{idx}"
+                        )
+
+
+# --- TAB 2: PAPER 2 SEARCH (ALGORITHMS, PROGRAMMING & LOGIC) ---
+with tab2:
+    st.subheader("🐍 Paper 2 Search (Algorithms & Programming - Variants 2 & 3)")
+    
+    col_v, col_kw = st.columns([1, 2])
+    with col_v:
+        p2_variant = st.selectbox(
+            "Select Variant Filter:", 
+            ["All Variants (2 & 3)", "Variant 2", "Variant 3"],
+            key="p2_variant_select"
+        )
+    with col_kw:
+        p2_kw = st.text_input(
+            "Enter Search Keywords", 
+            placeholder="e.g., Pseudocode, Flowchart, Trace Table, SQL, Array, Logic Gate", 
+            key="p2_kw"
+        )
+
+    if st.button("Search Paper 2", key="btn_search_p2"):
+        if p2_kw.strip():
+            filter_var = "Variant 2" if "Variant 2" in p2_variant else ("Variant 3" if "Variant 3" in p2_variant else "All Variants")
+            with st.spinner("Scanning Paper 2 PDFs..."):
+                st.session_state.p2_results = execute_pdf_search("p2", p2_kw, filter_var)
+        else:
+            st.warning("Please enter at least one keyword.")
+
+    if st.session_state.p2_results:
+        st.write(f"Found **{len(st.session_state.p2_results)}** matching page(s):")
+        for idx, item in enumerate(st.session_state.p2_results):
+            with st.expander(f"📄 {item['file']} | Page {item['page'] + 1}"):
+                c1, c2 = st.columns([3, 1])
+                with c1:
+                    preview_img = render_pdf_page_preview(item["path"], item["page"])
+                    if preview_img:
+                        st.image(preview_img, use_container_width=True)
+                with c2:
+                    if st.button("➕ Add to Cart", key=f"add_p2_{idx}"):
+                        st.session_state.handout_basket.append(item)
+                        st.toast(f"Added Page {item['page'] + 1} to cart!")
+                        st.rerun()
+                    
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    
+                    with open(item["path"], "rb") as pdf_f:
+                        st.download_button(
+                            label="📥 Download Full PDF",
+                            data=pdf_f,
+                            file_name=item["file"],
+                            mime="application/pdf",
+                            key=f"dl_p2_{idx}"
+                        )
+
+
+# --- TAB 3: HANDOUT CART & WORKSHEET GENERATOR ---
+with tab3:
+    st.subheader("🛒 Handout Cart & Worksheet Generator")
+    
+    if len(st.session_state.handout_basket) > 0:
+        st.info(f"### 📋 Selected Question Pages ({len(st.session_state.handout_basket)} items)")
+        st.caption("Review your selected pages below. Remove any individual page before compiling into Word format.")
+        st.markdown("---")
+        
+        items_to_display = list(st.session_state.handout_basket)
+        
+        for idx, item in enumerate(items_to_display):
+            filename = item.get("file", "Unknown File")
+            page_num = item.get("page", 0) + 1
+            file_path = item.get("path", "")
+            
+            with st.expander(f"📄 Item #{idx + 1}: {filename} (Page {page_num})", expanded=False):
+                col_preview, col_action = st.columns([3, 1])
+                
+                with col_preview:
+                    if os.path.exists(file_path):
+                        img_bytes = render_pdf_page_preview(file_path, item.get("page", 0))
+                        if img_bytes:
+                            st.image(img_bytes, caption=f"Preview: Page {page_num}", use_container_width=True)
+                    else:
+                        st.caption(f"Source file path: `{file_path}`")
+                
+                with col_action:
+                    st.markdown("#### Actions")
+                    remove_key = f"remove_btn_cart_item_{idx}_{filename}_{page_num}"
+                    if st.button("🗑️ Remove Item", key=remove_key, use_container_width=True):
+                        st.session_state.handout_basket.pop(idx)
+                        st.toast(f"Removed item #{idx + 1} from cart!")
+                        st.rerun()
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown("---")
+        st.markdown("### 📝 Export Handout / Worksheet")
+        
+        with st.spinner("Merging selected pages into Word Worksheet..."):
+            doc_buffer = create_worksheet_docx(st.session_state.handout_basket)
+            target_filename = f"{SYLLABUS_CODE}_CS_Worksheet.docx"
+
+        st.download_button(
+            label="🪄 Download Merged Word Document Worksheet",
+            data=doc_buffer,
+            file_name=target_filename,
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True
+        )
+    else:
+        st.info("🛒 Your Cart is empty! Search Paper 1 or Paper 2 and click '➕ Add to Cart' to build your worksheet.")
+
+
+# --- TAB 4: ANSWER SCHEME (PAPER 1) ---
+with tab4:
+    st.subheader("🔑 Download & Preview Marking Schemes (Paper 1)")
+    
+    col_y, col_m, col_v = st.columns([1, 1.5, 1.5])
+    with col_y:
+        as_year = st.text_input("Year (YYYY)", value="2023", key="ms1_year")
+    with col_m:
+        as_month = st.selectbox("Session", [" June (s) ", " November (w) "], key="ms1_mth")
+        month_code = "s" if "June" in as_month else "w"
+    with col_v:
+        as_variant = st.selectbox("Variant", ["12", "13"], key="ms1_var")
+
+    cleaned_year = as_year.strip()
+    short_year = cleaned_year[-2:] if len(cleaned_year) >= 2 else cleaned_year
+    search_session_tag = f"{month_code}{short_year}"
+    expected_ms_filename = f"{SYLLABUS_CODE}_{search_session_tag}_ms_{as_variant}.pdf"
+
+    st.markdown("---")
+    
+    found_ms_files = []
+    folder_path = LOCAL_FOLDERS["ms_p1"]
+
+    if os.path.exists(folder_path):
+        for file in os.listdir(folder_path):
+            if file.endswith(".pdf"):
+                file_lower = file.lower()
+                if search_session_tag in file_lower and f"ms_{as_variant}" in file_lower:
+                    found_ms_files.append(os.path.join(folder_path, file))
+
+    if found_ms_files:
+        st.success(f"Found {len(found_ms_files)} matching Answer Scheme file(s):")
+        for ms_path in found_ms_files:
+            ms_filename = os.path.basename(ms_path)
+            with st.expander(f"🔑 Mark Scheme: {ms_filename}", expanded=True):
+                with open(ms_path, "rb") as f:
+                    st.download_button(
+                        label=f"📥 Download {ms_filename}",
+                        data=f,
+                        file_name=ms_filename,
+                        mime="application/pdf",
+                        key=f"dl_ms1_btn_{ms_filename}"
+                    )
+                
+                doc = fitz.open(ms_path)
+                total_pages = len(doc)
+                st.caption(f"📜 Showing all **{total_pages}** pages below:")
+                
+                with st.container(height=600):
+                    for page_num in range(total_pages):
+                        page_img = render_pdf_page_preview(ms_path, page_num)
+                        if page_img:
+                            st.image(page_img, caption=f"Page {page_num + 1} of {total_pages}", use_container_width=True)
+                            if page_num < total_pages - 1:
+                                st.markdown("---")
+                doc.close()
+    else:
+        st.warning(f"No Mark Scheme found matching session `{search_session_tag}` and variant `{as_variant}` (Expected pattern: `{expected_ms_filename}`).")
+
+
+# --- TAB 5: ANSWER SCHEME (PAPER 2) ---
+with tab5:
+    st.subheader("🔑 Download & Preview Marking Schemes (Paper 2)")
+    
+    col_y, col_m, col_v = st.columns([1, 1.5, 1.5])
+    with col_y:
+        as_year2 = st.text_input("Year (YYYY)", value="2023", key="ms2_year")
+    with col_m:
+        as_month2 = st.selectbox("Session", [" June (s) ", " November (w) "], key="ms2_mth")
+        month_code2 = "s" if "June" in as_month2 else "w"
+    with col_v:
+        as_variant2 = st.selectbox("Variant", ["22", "23"], key="ms2_var")
+
+    cleaned_year2 = as_year2.strip()
+    short_year2 = cleaned_year2[-2:] if len(cleaned_year2) >= 2 else cleaned_year2
+    search_session_tag2 = f"{month_code2}{short_year2}"
+    expected_ms_filename2 = f"{SYLLABUS_CODE}_{search_session_tag2}_ms_{as_variant2}.pdf"
+
+    st.markdown("---")
+    
+    found_ms_files2 = []
+    folder_path2 = LOCAL_FOLDERS["ms_p2"]
+
+    if os.path.exists(folder_path2):
+        for file in os.listdir(folder_path2):
+            if file.endswith(".pdf"):
+                file_lower = file.lower()
+                if search_session_tag2 in file_lower and f"ms_{as_variant2}" in file_lower:
+                    found_ms_files2.append(os.path.join(folder_path2, file))
+
+    if found_ms_files2:
+        st.success(f"Found {len(found_ms_files2)} matching Answer Scheme file(s):")
+        for ms_path in found_ms_files2:
+            ms_filename = os.path.basename(ms_path)
+            with st.expander(f"🔑 Mark Scheme: {ms_filename}", expanded=True):
+                with open(ms_path, "rb") as f:
+                    st.download_button(
+                        label=f"📥 Download {ms_filename}",
+                        data=f,
+                        file_name=ms_filename,
+                        mime="application/pdf",
+                        key=f"dl_ms2_btn_{ms_filename}"
+                    )
+                
+                doc = fitz.open(ms_path)
+                total_pages = len(doc)
+                st.caption(f"📜 Showing all **{total_pages}** pages below:")
+                
+                with st.container(height=600):
+                    for page_num in range(total_pages):
+                        page_img = render_pdf_page_preview(ms_path, page_num)
+                        if page_img:
+                            st.image(page_img, caption=f"Page {page_num + 1} of {total_pages}", use_container_width=True)
+                            if page_num < total_pages - 1:
+                                st.markdown("---")
+                doc.close()
+    else:
+        st.warning(f"No Mark Scheme found matching session `{search_session_tag2}` and variant `{as_variant2}` (Expected pattern: `{expected_ms_filename2}`).")
+
+
+# --- TAB 6: ADMIN PANEL (WITH DIRECT STREAMLIT UPLOADER) ---
+with tab6:
+    st.subheader("🔒 Administrator Control Panel")
+    st.caption("Upload PYP PDFs directly to Google Drive repositories or access web folders.")
+
+    admin_pwd = st.secrets.get("ADMIN_PASSWORD", "")
+    pwd_input = st.text_input("Enter Admin Password", type="password", key="admin_pwd_input")
+
+    if pwd_input and pwd_input == admin_pwd:
+        st.success("Authenticated as Administrator")
+        st.markdown("---")
+        
+        # --- DIRECT STREAMLIT UPLOADER SECTION ---
+        st.markdown("### 📤 Direct PDF File Uploader")
+        st.info("Upload past papers or mark schemes directly here. Files will be uploaded to Google Drive and saved locally for instant search.")
+
+        col_target, col_files = st.columns([1, 2])
+
+        with col_target:
+            target_repo = st.selectbox(
+                "Select Target Repository:",
+                [
+                    "Paper 1 Question Papers (p1)",
+                    "Paper 2 Question Papers (p2)",
+                    "Paper 1 Mark Schemes (ms_p1)",
+                    "Paper 2 Mark Schemes (ms_p2)"
+                ],
+                key="admin_upload_repo_select"
+            )
+
+            # Map user selection to LOCAL_FOLDERS / drive_folders key
+            if "(p1)" in target_repo:
+                selected_folder_key = "p1"
+            elif "(p2)" in target_repo:
+                selected_folder_key = "p2"
+            elif "(ms_p1)" in target_repo:
+                selected_folder_key = "ms_p1"
+            else:
+                selected_folder_key = "ms_p2"
+
+        with col_files:
+            uploaded_pdfs = st.file_uploader(
+                "Choose PDF File(s)",
+                type=["pdf"],
+                accept_multiple_files=True,
+                key="admin_pdf_uploader"
+            )
+
+        if st.button("🚀 Upload File(s) Now", use_container_width=True, key="btn_upload_pdfs"):
+            if uploaded_pdfs:
+                progress_bar = st.progress(0)
+                total_files = len(uploaded_pdfs)
+
+                for idx, pdf_file in enumerate(uploaded_pdfs):
+                    file_bytes = pdf_file.read()
+                    file_name = pdf_file.name
+
+                    with st.spinner(f"Uploading `{file_name}`..."):
+                        success, message = upload_file_to_drive(file_bytes, file_name, selected_folder_key)
+                        if success:
+                            st.success(message)
+                        else:
+                            st.error(message)
+
+                    progress_bar.progress((idx + 1) / total_files)
+
+                st.toast("Upload processing complete!")
+            else:
+                st.warning("Please select at least one PDF file to upload.")
+
+        st.markdown("---")
+
+        # --- GOOGLE DRIVE LINKS SECTION ---
+        st.markdown("### 🌐 External Google Drive Web Folders")
+        drive_links = st.secrets.get("drive_web_links", {})
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.link_button("🖥️ 1. Paper 1 Question Papers Folder", drive_links.get("p1", "https://drive.google.com"), use_container_width=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.link_button("🔑 3. Answer Schemes (Paper 1) Folder", drive_links.get("ms_p1", "https://drive.google.com"), use_container_width=True)
+            
+        with c2:
+            st.link_button("🐍 2. Paper 2 Question Papers Folder", drive_links.get("p2", "https://drive.google.com"), use_container_width=True)
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.link_button("🔑 4. Answer Schemes (Paper 2) Folder", drive_links.get("ms_p2", "https://drive.google.com"), use_container_width=True)
+
+    elif pwd_input:
+        st.error("Incorrect Admin Password.")
+
+
+# ==========================================
+# 6. PORTAL FOOTER
+# ==========================================
+st.markdown("---")
+SCHOOL_NAME = "Pusat Tingkatan Enam Sengkurong (PTES)"
+SCHOOL_VISION = "Nurturing Resilient Leaders & Future-Ready Citizens"
+
+footer_html = f"""
+<div style="text-align: center; padding: 15px 0px; font-family: sans-serif;">
+    <p style="margin: 0; font-size: 1.0em; font-weight: bold; color: #384403;">🏫 {SCHOOL_NAME}</p>
+    <p style="margin: 5px 0; font-size: 0.9em; font-style: italic; color: #384403;">"{SCHOOL_VISION}"</p>
+    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed for O Level Computer Science ({SYLLABUS_CODE})</p>
+</div>
+"""
+st.markdown(footer_html, unsafe_allow_html=True)
