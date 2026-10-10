@@ -336,7 +336,7 @@ def create_worksheet_docx(basket_items: list) -> io.BytesIO:
         img_data = io.BytesIO(pix.tobytes("png"))
 
         # Add image with height constraint (6.8 in) so heading + image fit on 1 page
-        doc.add_picture(img_data, height=Inches(6.8))
+        doc.add_picture(img_data, height=Inches(8.8))
 
         if idx < len(basket_items) - 1:
             doc.add_page_break()
@@ -415,8 +415,8 @@ if 'has_auto_synced' not in st.session_state:
 # ==========================================
 # 5. STREAMLIT UI LAYOUT
 # ==========================================
-st.title("PUSAT TINGKATAN ENAM SENGKURONG")
-st.subheader(f"💻 O Level {SYLLABUS_CODE} Computer Science PYP Portal")
+st.title("2210 COMPUTER SCIENCE PYP BRUNEI ZONE")
+st.subheader(f"💻 GCE O Level {SYLLABUS_CODE} Computer Science WORKSHEET generator HUB")
 
 # --- SIDEBAR CONTROLS ---
 with st.sidebar:
@@ -437,18 +437,17 @@ with st.sidebar:
 
 # --- NAVIGATION TABS (6 TABS) ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🖥️ Paper 1 Search", 
-    "🐍 Paper 2 Search", 
+    "🖥️ Ppr1 Search", 
+    "🐍 Ppr2 Search", 
     "🛒 Handout Cart", 
-    "🔑 Answer Scheme P1", 
-    "🔑 Answer Scheme P2", 
+    "🔑 Answer P1", 
+    "🔑 Answer P2", 
     "🔒 Admin Panel"
 ])
 
-
 # --- TAB 1: PAPER 1 SEARCH (COMPUTER SYSTEMS) ---
 with tab1:
-    st.subheader("🖥️ Paper 1 Search (Computer Systems - Variants 2 & 3)")
+    st.subheader("🖥️ Paper 1 Search (Computer Systems)")
     
     col_v, col_kw = st.columns([1, 2])
     with col_v:
@@ -501,7 +500,7 @@ with tab1:
 
 # --- TAB 2: PAPER 2 SEARCH (ALGORITHMS, PROGRAMMING & LOGIC) ---
 with tab2:
-    st.subheader("🐍 Paper 2 Search (Algorithms & Programming - Variants 2 & 3)")
+    st.subheader("🐍 Paper 2 Search (Algorithms & Programming)")
     
     col_v, col_kw = st.columns([1, 2])
     with col_v:
@@ -821,14 +820,14 @@ with tab6:
 # 6. PORTAL FOOTER
 # ==========================================
 st.markdown("---")
-SCHOOL_NAME = "Pusat Tingkatan Enam Sengkurong (PTES)"
+SCHOOL_NAME = "SBC COMPUTER SCIENCE YEAR 9, 10 AND 11 BRUNEI EDUCATION"
 SCHOOL_VISION = "Nurturing Resilient Leaders & Future-Ready Citizens"
 
 footer_html = f"""
 <div style="text-align: center; padding: 15px 0px; font-family: sans-serif;">
     <p style="margin: 0; font-size: 1.0em; font-weight: bold; color: #384403;">🏫 {SCHOOL_NAME}</p>
     <p style="margin: 5px 0; font-size: 0.9em; font-style: italic; color: #384403;">"{SCHOOL_VISION}"</p>
-    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed for O Level Computer Science ({SYLLABUS_CODE})</p>
+    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed by Cg H Nurul Haziqah (PTES)</p>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
