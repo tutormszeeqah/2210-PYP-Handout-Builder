@@ -207,7 +207,7 @@ def perform_bulk_sync():
 def upload_file_to_drive(file_bytes: bytes, file_name: str, folder_key: str) -> tuple[bool, str]:
     """
     Saves the uploaded PDF locally for instant search and preview,
-    and uploads to Google Drive while granting permissions to the main folder owner.
+    and uploads directly to Google Drive with Shared Drive flags enabled.
     """
     # 1. ALWAYS save a local copy first so search works immediately
     local_dir = LOCAL_FOLDERS[folder_key]
@@ -219,60 +219,60 @@ def upload_file_to_drive(file_bytes: bytes, file_name: str, folder_key: str) -> 
     except Exception as e:
         return False, f"Failed to save `{file_name}` locally: {e}"
 
-    # 2. Attempt upload to Google Drive
+    # 2. Authenticate Google Drive Service Account
     service = build_drive_service(write_access=True)
     if not service:
-        return True, f"✅ `{file_name}` saved locally and ready for search!"
+        return True, f"✅ `{file_name}` saved locally! (Could not initialize Drive Service Account)."
 
     folder_ids = st.secrets.get("drive_folders", {})
     drive_folder_id = folder_ids.get(folder_key)
 
-    if drive_folder_id:
-        try:
-            file_metadata = {
-                'name': file_name,
-                'parents': [drive_folder_id]
-            }
-            media = MediaIoBaseUpload(
-                io.BytesIO(file_bytes), 
-                mimetype='application/pdf', 
-                resumable=True
-            )
+    if not drive_folder_id:
+        return True, f"✅ `{file_name}` saved locally! (Missing folder ID for `{folder_key}` in secrets)."
 
-            uploaded_file = service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id',
-                supportsAllDrives=True,
-                supportsTeamDrives=True
-            ).execute()
+    # 3. Stream upload directly to Google Drive
+    try:
+        file_metadata = {
+            'name': file_name,
+            'parents': [drive_folder_id]
+        }
+        media = MediaIoBaseUpload(
+            io.BytesIO(file_bytes), 
+            mimetype='application/pdf', 
+            resumable=True
+        )
 
-            file_id = uploaded_file.get('id')
+        uploaded_file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id',
+            supportsAllDrives=True,
+            supportsTeamDrives=True
+        ).execute()
 
-            # Grant explicit write permission to the main owner email if defined in secrets
-            admin_email = st.secrets.get("ADMIN_EMAIL", "")
-            if admin_email and file_id:
-                try:
-                    user_permission = {
-                        'type': 'user',
-                        'role': 'writer',
-                        'emailAddress': admin_email
-                    }
-                    service.permissions().create(
-                        fileId=file_id,
-                        body=user_permission,
-                        supportsAllDrives=True
-                    ).execute()
-                except Exception:
-                    pass  # Permission sharing attempt silent failover
+        file_id = uploaded_file.get('id')
 
-            return True, f"🚀 `{file_name}` uploaded to Google Drive & indexed locally!"
+        # 4. Optional: Share explicitly with admin email if configured in secrets
+        admin_email = st.secrets.get("ADMIN_EMAIL", "")
+        if admin_email and file_id:
+            try:
+                permission = {
+                    'type': 'user',
+                    'role': 'writer',
+                    'emailAddress': admin_email
+                }
+                service.permissions().create(
+                    fileId=file_id,
+                    body=permission,
+                    supportsAllDrives=True
+                ).execute()
+            except Exception:
+                pass
 
-        except Exception as e:
-            # Fallback notification confirming local file save if Drive storage quota limits API write
-            return True, f"✅ `{file_name}` saved locally and ready for search!"
+        return True, f"🚀 `{file_name}` successfully uploaded to Google Drive (ID: `{file_id}`) and saved locally!"
 
-    return True, f"✅ `{file_name}` saved locally and indexed for immediate search!"
+    except Exception as drive_err:
+        return True, f"✅ `{file_name}` saved locally and ready for search! (Drive remote note: {drive_err})"
 
 
 # ==========================================
@@ -415,8 +415,8 @@ if 'has_auto_synced' not in st.session_state:
 # ==========================================
 # 5. STREAMLIT UI LAYOUT
 # ==========================================
-st.title("2210 COMPUTER SCIENCE FOR BRUNEI EDUCATION")
-st.subheader(f"💻 {SYLLABUS_CODE} Computer Science PYP Worksheet Portal")
+st.title("PUSAT TINGKATAN ENAM SENGKURONG")
+st.subheader(f"💻 O Level {SYLLABUS_CODE} Computer Science PYP Portal")
 
 # --- SIDEBAR CONTROLS ---
 with st.sidebar:
@@ -437,18 +437,18 @@ with st.sidebar:
 
 # --- NAVIGATION TABS (6 TABS) ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🖥️ P1 Search", 
-    "🐍 P2 Search", 
+    "🖥️ Paper 1 Search", 
+    "🐍 Paper 2 Search", 
     "🛒 Handout Cart", 
-    "🔑 Answer P1", 
-    "🔑 Answer P2", 
+    "🔑 Answer Scheme P1", 
+    "🔑 Answer Scheme P2", 
     "🔒 Admin Panel"
 ])
 
 
 # --- TAB 1: PAPER 1 SEARCH (COMPUTER SYSTEMS) ---
 with tab1:
-    st.subheader("🖥️ Paper 1 Search (Computer Systems")
+    st.subheader("🖥️ Paper 1 Search (Computer Systems - Variants 2 & 3)")
     
     col_v, col_kw = st.columns([1, 2])
     with col_v:
@@ -501,7 +501,7 @@ with tab1:
 
 # --- TAB 2: PAPER 2 SEARCH (ALGORITHMS, PROGRAMMING & LOGIC) ---
 with tab2:
-    st.subheader("🐍 Paper 2 Search (Algorithms & Programming)")
+    st.subheader("🐍 Paper 2 Search (Algorithms & Programming - Variants 2 & 3)")
     
     col_v, col_kw = st.columns([1, 2])
     with col_v:
@@ -821,14 +821,14 @@ with tab6:
 # 6. PORTAL FOOTER
 # ==========================================
 st.markdown("---")
-SCHOOL_NAME = "SBC COMPUTER SCIENCE 2210 for SECONDARY SCHOOL"
+SCHOOL_NAME = "Pusat Tingkatan Enam Sengkurong (PTES)"
 SCHOOL_VISION = "Nurturing Resilient Leaders & Future-Ready Citizens"
 
 footer_html = f"""
 <div style="text-align: center; padding: 15px 0px; font-family: sans-serif;">
     <p style="margin: 0; font-size: 1.0em; font-weight: bold; color: #384403;">🏫 {SCHOOL_NAME}</p>
     <p style="margin: 5px 0; font-size: 0.9em; font-style: italic; color: #384403;">"{SCHOOL_VISION}"</p>
-    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed BY Cikgu Hjh Nurul Haziqah @ Hartini HN ({SYLLABUS_CODE})</p>
+    <p style="margin: 5px 0 0 0; font-size: 0.85em; font-weight: 600; color: #384403;">💻 Developed for O Level Computer Science ({SYLLABUS_CODE})</p>
 </div>
 """
 st.markdown(footer_html, unsafe_allow_html=True)
